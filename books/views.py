@@ -3,9 +3,25 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.views import APIView
 from django.shortcuts import get_object_or_404
-from .models import Book
-from .serializers import BookSerializer
+from .models import Author, Book
+from .serializers import BookSerializer, AuthorSerializer
 
+
+
+class AuthorsListCreateAPIView(APIView):
+    # GET 
+    def get(self, request):
+        authors = Author.objects.all()
+        serializer = AuthorSerializer(authors, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    # POST 
+    def post(self, request):
+        serializer = AuthorSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 class BookListCreateAPIView(APIView):
     
