@@ -2,12 +2,13 @@ from django.urls import reverse
 from django.contrib.auth.models import User
 from rest_framework import status
 from rest_framework.test import APITestCase
-from .models import Book
+from .models import Book, Author
 
 class BookAPITestCase(APITestCase):
     
     def setUp(self):
         self.user = User.objects.create_user(username='desmond', password='2108abcd')
+        self.author = Author.objects.create(name='J.R.R. Tolkien', bio='English writer, poet, philologist, and academic.')
         self.url = reverse('book-list-create')
 
     def test_get_books_unauthorized_return_401(self):
@@ -26,7 +27,7 @@ class BookAPITestCase(APITestCase):
         self.client.force_authenticate(user=self.user)
         data = {
             "title": "The Silmarillion", 
-            "author": "J.R.R. Tolkien", 
+            "author": self.author.id, 
             "is_read": False
         }
         response = self.client.post(self.url, data, format='json')
@@ -36,8 +37,8 @@ class BookAPITestCase(APITestCase):
         """Ensure users can filter books by their read status."""
         self.client.force_authenticate(user=self.user)
     
-        Book.objects.create(title="Read Book", author="Author", is_read=True, owner=self.user)
-        Book.objects.create(title="Unread Book", author="Author", is_read=False, owner=self.user)
+        Book.objects.create(title="Read Book", author=self.author, is_read=True, owner=self.user)
+        Book.objects.create(title="Unread Book", author=self.author, is_read=False, owner=self.user)
 
         response = self.client.get(self.url, {'is_read': 'true'})
         
