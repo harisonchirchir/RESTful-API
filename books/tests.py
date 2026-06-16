@@ -8,7 +8,7 @@ class BookAPITestCase(APITestCase):
     
     def setUp(self):
         self.user = User.objects.create_user(username='desmond', password='2108abcd')
-        self.author = Author.objects.create(name='J.R.R. Tolkien', bio='English writer, poet, philologist, and academic.')
+        self.author = Author.objects.create(name='J.R.R. Tolkien', biography='English writer, poet, philologist, and academic.')
         self.url = reverse('book-list-create')
 
     def test_get_books_unauthorized_return_401(self):
