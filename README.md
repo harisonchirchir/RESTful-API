@@ -1,216 +1,141 @@
 # RESTful API - Library Management System
 
-A secure, tested RESTful API built with Django and Django REST Framework. This project demonstrates best practices for building production-ready APIs with authentication, permissions, and proper data validation.
-
-## Overview
-
-This is a library management system API that allows authenticated users to manage a personal collection of books and view available authors. The API provides endpoints for creating, reading, updating, and deleting books, as well as managing author information.
+A Django REST Framework API for managing authors and personal book collections. Clients authenticate with DRF token authentication. Each user can view and manage only their own books; authors are shared across users.
 
 ## Stack
 
-- **Language:** Python
-- **Framework:** Django 5.1.0 + Django REST Framework 3.15.0
-- **Database:** SQLite (development)
-- **Authentication:** Token-based authentication
-- **Validation:** Pydantic 2.0.0
+- Python
+- Django 5.1+
+- Django REST Framework 3.15+
+- SQLite (configured database)
+- Token and session authentication
 
-## Project Structure
+## Project structure
 
-```
-RESTful-API/
-├── manage.py                    # Django command-line utility
-├── requirements.txt             # Project dependencies
-├── db.sqlite3                   # SQLite database
+```text
+.
+├── books/
+│   ├── migrations/          # Database schema migrations
+│   ├── models.py            # Author and Book models
+│   ├── serializers.py       # API serialization and validation
+│   ├── tests.py             # API tests
+│   ├── urls.py              # Books app routes
+│   └── views.py             # API views
 ├── library_project/
-│   ├── settings.py             # Django configuration
-│   ├── urls.py                 # Main URL routing
-│   ├── wsgi.py                 # WSGI application
-│   └── asgi.py                 # ASGI application
-└── books/
-    ├── models.py               # Database models (Author, Book)
-    ├── views.py                # API views and endpoints
-    ├── serializers.py          # DRF serializers
-    ├── urls.py                 # Books app URL routing
-    └── admin.py                # Django admin configuration
+│   ├── settings.py          # Django and REST framework settings
+│   └── urls.py              # Project routes
+├── .env.example             # Example environment settings
+├── manage.py
+└── requirements.txt
 ```
 
-## Models
+## Data models
 
-### Author
-- `name` (CharField, max_length=200)
-- `biography` (TextField, optional)
+**Author** has a unique name, an optional biography, and creation/update timestamps.
 
-### Book
-- `title` (CharField, max_length=200)
-- `author` (ForeignKey to Author)
-- `owner` (ForeignKey to User) - Links book to authenticated user
-- `is_read` (BooleanField, default=False)
+**Book** has a title, a read status, creation/update timestamps, an owner, and an optional author. A user cannot have two books with the same title. Books are ordered newest first.
 
-## API Endpoints
+## Setup
 
-### Books
-- `GET /api/books/` - List all books for authenticated user
-  - Query parameter: `is_read=true|false` to filter by read status
-- `POST /api/books/` - Create a new book
-- `GET /api/books/{id}/` - Retrieve a specific book
-- `PUT /api/books/{id}/` - Update a book
-- `DELETE /api/books/{id}/` - Delete a book
-
-### Authors
-- `GET /api/authors/` - List all authors
-- `POST /api/authors/` - Create a new author
-
-### Authentication
-- `POST /api-token-auth/` - Obtain authentication token
-
-## Setup Instructions
-
-### 1. Clone the Repository
 ```bash
 git clone https://github.com/harisonchirchir/RESTful-API.git
 cd RESTful-API
-```
-
-### 2. Create Virtual Environment
-```bash
-python -m venv env
-source env/bin/activate  # On Windows: env\Scripts\activate
-```
-
-### 3. Install Dependencies
-```bash
+python -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-### 4. Apply Migrations
+Optionally copy `.env.example` to `.env` and set `SECRET_KEY`, `DEBUG`, and `ALLOWED_HOSTS` for your environment. The project uses SQLite.
+
+Initialize the database and create an administrator:
+
 ```bash
 python manage.py migrate
-```
-
-### 5. Create Superuser
-```bash
 python manage.py createsuperuser
-```
-
-### 6. Run Development Server
-```bash
 python manage.py runserver
 ```
 
-The API will be available at `http://localhost:8000/`
+The API is available at `http://localhost:8000/`. The root URL redirects to `/api/books/`.
 
 ## Authentication
 
-The API uses **Token Authentication**. To authenticate:
+All API endpoints require authentication. Obtain a token with a Django user's credentials:
 
-1. Get your token:
 ```bash
 curl -X POST http://localhost:8000/api-token-auth/ \
   -H "Content-Type: application/json" \
-  -d '{"username": "your_username", "password": "your_password"}'
+  -d '{"username":"your_username","password":"your_password"}'
 ```
 
-2. Include the token in subsequent requests:
+Send the returned token on API requests:
+
 ```bash
-curl -H "Authorization: Token YOUR_TOKEN_HERE" \
-  http://localhost:8000/api/books/
+curl http://localhost:8000/api/books/ \
+  -H "Authorization: Token YOUR_TOKEN"
 ```
 
-## Example Usage
+## API endpoints
 
-### Create a Book
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/api/books/` | List the authenticated user's books |
+| `POST` | `/api/books/` | Add a book to the authenticated user's collection |
+| `GET` | `/api/books/{id}/` | Retrieve one of the user's books |
+| `PUT` | `/api/books/{id}/` | Replace/update one of the user's books |
+| `DELETE` | `/api/books/{id}/` | Delete one of the user's books |
+| `GET` | `/api/authors/` | List authors |
+| `POST` | `/api/authors/` | Create an author |
+
+The book list accepts `is_read=true` or `is_read=false` as a query parameter, for example `/api/books/?is_read=true`. Book responses include nested author details. When creating or updating a book, provide `author_id` to select an author; `owner` is set from the authenticated user and cannot be supplied by the client.
+
+## Examples
+
+Create an author:
+
+```bash
+curl -X POST http://localhost:8000/api/authors/ \
+  -H "Authorization: Token YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"name":"William Martin","biography":"Software architect and author"}'
+```
+
+Create a book (using an existing author's ID):
+
 ```bash
 curl -X POST http://localhost:8000/api/books/ \
   -H "Authorization: Token YOUR_TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{
-    "title": "Django for Beginners",
-    "author_id": 1,
-    "is_read": false
-  }'
+  -d '{"title":"Django for Beginners","author_id":1,"is_read":false}'
 ```
 
-### List Your Books
+Filter your books:
+
 ```bash
-curl -H "Authorization: Token YOUR_TOKEN" \
-  http://localhost:8000/api/books/
+curl "http://localhost:8000/api/books/?is_read=true" \
+  -H "Authorization: Token YOUR_TOKEN"
 ```
-
-### Filter Books by Read Status
-```bash
-curl -H "Authorization: Token YOUR_TOKEN" \
-  'http://localhost:8000/api/books/?is_read=true'
-```
-
-### Create an Author
-```bash
-curl -X POST http://localhost:8000/api/authors/ \
-  -H "Content-Type: application/json" \
-  -d '{
-    "name": "William Martin",
-    "biography": "Software architect and author"
-  }'
-```
-
-## Security Features
-
-- Token-based authentication
-- User-specific data isolation (books are filtered by owner)
-- Default permission requires authentication
-- Django built-in password validation
-- CSRF protection middleware
-- Session authentication fallback
-
-## Configuration Details
-
-### REST Framework Settings
-- Authentication: TokenAuthentication + SessionAuthentication
-- Default permission: IsAuthenticated
-- All endpoints require authentication by default
-
-### Database
-- Development database: SQLite (db.sqlite3)
-- For production, configure PostgreSQL or MySQL in settings.py
-
-### Settings Security Notes
-- `SECRET_KEY` should be moved to environment variables for production
-- `DEBUG` should be set to `False` for production
-- `ALLOWED_HOSTS` should be configured appropriately for production
 
 ## Development
 
-### Admin Interface
-Access Django admin at `http://localhost:8000/admin/` with your superuser credentials.
+Run the tests with:
 
-### Database Shell
 ```bash
-python manage.py shell
+python manage.py test
 ```
 
-### Create Migrations
+Create and apply model migrations with:
+
 ```bash
 python manage.py makemigrations
 python manage.py migrate
 ```
 
-## Project Features
+The Django admin is available at `/admin/` after creating a superuser.
 
-✓ Token-based API authentication
-✓ User-owned resource management
-✓ Author and Book data models
-✓ Filtering capabilities (books by read status)
-✓ Proper HTTP status codes
-✓ DRF serializers for data validation
-✓ Class-based views for clean architecture
-✓ Database relationships and constraints
+## Configuration and deployment
+
+The project defaults to development settings and SQLite. Before deployment, provide a secure `SECRET_KEY`, set `DEBUG=False`, configure `ALLOWED_HOSTS`, and choose an appropriately managed production database. Do not use the development settings as-is for a public deployment.
 
 ## License
 
-MIT License - See repository for details
-
-## Topics
-
-- Django
-- Django REST Framework
-- REST API
-- Backend Development
+MIT License. See [LICENSE](LICENSE).
