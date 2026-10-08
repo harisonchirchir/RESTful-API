@@ -97,3 +97,4 @@ gunicorn library_project.wsgi:application --bind 0.0.0.0:8000
 ```
 
 Set `DEBUG=False` in `backend/.env` for production.
+The Django admin is available at `/admin/` after creating a superuser.
