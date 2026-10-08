@@ -46,3 +46,40 @@ class BookAPITestCase(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]['title'], "Read Book")
+
+
+class RegisterAPITestCase(APITestCase):
+    url = reverse('user-register')
+
+    def test_register_creates_user_and_returns_token(self):
+        data = {'username': 'alice', 'password': 'secret123'}
+        response = self.client.post(self.url, data, format='json')
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn('token', response.data)
+        self.assertEqual(response.data['username'], 'alice')
+        self.assertTrue(User.objects.filter(username='alice').exists())
+
+    def test_register_missing_password_returns_400(self):
+        response = self.client.post(self.url, {'username': 'bob'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class LoginAPITestCase(APITestCase):
+    url = reverse('user-login')
+
+    def setUp(self):
+        self.user = User.objects.create_user(username='desmond', password='2108abcd')
+
+    def test_login_returns_token(self):
+        response = self.client.post(
+            self.url, {'username': 'desmond', 'password': '2108abcd'}, format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['username'], 'desmond')
+        self.assertTrue(response.data['token'])
+
+    def test_login_wrong_password_returns_400(self):
+        response = self.client.post(
+            self.url, {'username': 'desmond', 'password': 'wrong'}, format='json'
+        )
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

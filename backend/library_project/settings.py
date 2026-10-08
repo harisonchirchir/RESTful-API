@@ -14,7 +14,29 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parent.parent / '.env')
+
+# --- Python 3.14 compatibility shim for Django 5.1.x ---
+# Django 5.1's BaseContext.__copy__() uses copy(super()), which raises
+# AttributeError on Python 3.14 ("'super' object has no attribute 'dicts'").
+# This breaks Django admin template rendering on 3.14. The real fix is to
+# run on a supported interpreter (Python 3.10-3.13); this shim is a
+# stopgap so the project still works here. It only applies on 3.14+.
+import sys as _sys
+
+if _sys.version_info >= (3, 14):
+    try:
+        from django.template.context import BaseContext
+
+        def _patched_copy(self):
+            duplicate = self.__class__.__new__(self.__class__)
+            duplicate.__dict__.update(self.__dict__)
+            duplicate.dicts = self.dicts[:]
+            return duplicate
+
+        BaseContext.__copy__ = _patched_copy
+    except Exception:
+        pass
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -24,13 +46,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = os.getenv(
-    'SECRET_KEY',
-    'django-insecure-dk!c#kzet63vim^iuc*_n8*1qcpo25dfu!5$(-bv$!_sze+mge'
-)
+# The key MUST come from the SECRET_KEY env var (set in .env, which is
+# gitignored). There is no fallback default — an unset key means a
+# misconfiguration, so fail loudly instead of silently using an insecure value.
+SECRET_KEY = os.environ["SECRET_KEY"]
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
+DEBUG = os.getenv('DEBUG', 'False') == 'True'
 
 ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',')
 
@@ -50,6 +72,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -124,8 +147,12 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
-
+# STATIC_ROOT is where `collectstatic` copies all static assets for
+# production. Whitenoise serves them from there with compressed, cached
+# responses. In dev (DEBUG=True) the dev server serves them directly.
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
