@@ -132,10 +132,6 @@ python manage.py migrate
 
 The Django admin is available at `/admin/` after creating a superuser.
 
-## Configuration and deployment
-
-The project defaults to development settings and SQLite. Before deployment, provide a secure `SECRET_KEY`, set `DEBUG=False`, configure `ALLOWED_HOSTS`, and choose an appropriately managed production database. Do not use the development settings as-is for a public deployment.
-
 ## License
 
 MIT License. See [LICENSE](LICENSE).
